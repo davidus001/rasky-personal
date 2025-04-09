@@ -1,12 +1,12 @@
 package org.firstinspires.ftc.teamcode;
 
-import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
-import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
-import com.qualcomm.robotcore.hardware.DcMotorEx;
-import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode; // Import LinearOpMode base class
+import com.qualcomm.robotcore.eventloop.opmode.TeleOp; // Import TeleOp annotation
+import com.qualcomm.robotcore.hardware.DcMotor; // Import DcMotor class
+import com.qualcomm.robotcore.hardware.DcMotorEx; // Import DcMotorEx for extended motor control
 
-@Autonomous(name = "Specimen - Humanzone", group = "Autonomous")
-public class FirstAuto extends LinearOpMode {
+@TeleOp(name = "Simple driving", group = "TeleOp")
+public class SimpleDriveOpMode extends LinearOpMode {
 
     private DcMotorEx frontLeft, frontRight, backLeft, backRight;
 
@@ -28,7 +28,7 @@ public class FirstAuto extends LinearOpMode {
             motor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         }
 
-        telemetry.addLine("Ready to run auto");
+        telemetry.addLine("Ready");
         telemetry.update();
 
         waitForStart();
@@ -36,40 +36,66 @@ public class FirstAuto extends LinearOpMode {
         double countsPerRev = 537.7;
         double wheelDiameterInches = 3.8;
         double countsPerInch = countsPerRev / (wheelDiameterInches * Math.PI);
+        double inches = 10;
+        int target = (int)(inches * countsPerInch);
 
-        int forward22 = (int)(22 * countsPerInch);
-        int forward15 = (int)(15 * countsPerInch);
-        int forward10 = (int)(10 * countsPerInch);
-        int forward5 =  (int)(5 * countsPerInch);
-        int backward15 = (int)(-15 * countsPerInch);
-        int right12 = (int)(12 * countsPerInch);
+        boolean hasMoved = false;
 
-        moveAndSleep(forward22, 0.5);
-        rotate90Degrees(0.5); sleep(500);
-        moveAndSleep(forward10, 0.5);
-        rotate90Degrees(0.5); sleep(500);
-        moveAndSleep(forward5, 0.5);
-        strafeAndSleep(right12, 0.5);
-        moveAndSleep(backward15, 0.5);
-        moveAndSleep(forward15, 0.5);
-        strafeAndSleep(right12, 0.5);
-        moveAndSleep(backward15, 0.5);
-        moveAndSleep(forward15, 0.5);
-        strafeAndSleep(right12, 0.5);
-        moveAndSleep(backward15, 0.5);
+        while (opModeIsActive()) {
 
-        telemetry.addLine("Auto path complete!");
-        telemetry.update();
-    }
+            double deadZone = 0.05;
+            double y = Math.abs(gamepad1.left_stick_y) > deadZone ? -gamepad1.left_stick_y : 0.0;
+            double x = Math.abs(gamepad1.left_stick_x) > deadZone ? gamepad1.left_stick_x * 1.1 : 0.0;
+            double rx = Math.abs(gamepad1.right_stick_x) > deadZone ? gamepad1.right_stick_x : 0.0;
 
-    private void moveAndSleep(int ticks, double power) {
-        moveInches(ticks, power);
-        sleep(500);
-    }
+            double denominator = Math.max(Math.abs(y) + Math.abs(x) + Math.abs(rx), 1);
+            double frontLeftPower = (y + x + rx) / denominator;
+            double backLeftPower = (y - x + rx) / denominator;
+            double frontRightPower = (y - x - rx) / denominator;
+            double backRightPower = (y + x - rx) / denominator;
 
-    private void strafeAndSleep(int ticks, double power) {
-        strafeInches(ticks, power);
-        sleep(500);
+            if (gamepad1.triangle && !hasMoved) {
+                moveInches(target, 0.5);
+                sleep(500);
+                rotate90Degrees(0.5);
+                sleep(500);
+                moveInches(target, 0.5);
+                sleep(500);
+                rotate90Degrees(0.5);
+                sleep(500);
+                moveInches(target, 0.5);
+                sleep(500);
+                rotate90Degrees(0.5);
+                sleep(500);
+                moveInches(target, 0.5);
+                sleep(500);
+                rotate90Degrees(0.5);
+                sleep(500);
+                hasMoved = true;
+            }
+
+            if (gamepad1.square && !hasMoved){
+                while (!gamepad1.square){
+                    rotate90Degrees(0.5);
+                }
+                hasMoved = true;
+            }
+
+            if (!gamepad1.triangle && (y != 0 || x != 0 || rx != 0)) {
+                frontLeft.setPower(frontLeftPower);
+                frontRight.setPower(frontRightPower);
+                backLeft.setPower(backLeftPower);
+                backRight.setPower(backRightPower);
+            } else if (!gamepad1.triangle) {
+                frontLeft.setPower(0);
+                frontRight.setPower(0);
+                backLeft.setPower(0);
+                backRight.setPower(0);
+            }
+
+            telemetry.addLine("Mecanum Drive Active");
+            telemetry.update();
+        }
     }
 
     private void moveInches(int ticks, double power) {
@@ -83,32 +109,7 @@ public class FirstAuto extends LinearOpMode {
 
         while (opModeIsActive() && frontLeft.isBusy()) {
             telemetry.addData("Moving to", frontLeft.getTargetPosition());
-            telemetry.addData("Current", frontLeft.getCurrentPosition());
-            telemetry.update();
-        }
-
-        for (DcMotorEx motor : motors) {
-            motor.setPower(0);
-            motor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        }
-    }
-
-    private void strafeInches(int ticks, double power) {
-        frontLeft.setTargetPosition(frontLeft.getCurrentPosition() + ticks);
-        backLeft.setTargetPosition(backLeft.getCurrentPosition() - ticks);
-        frontRight.setTargetPosition(frontRight.getCurrentPosition() - ticks);
-        backRight.setTargetPosition(backRight.getCurrentPosition() + ticks);
-
-        DcMotorEx[] motors = {frontLeft, frontRight, backLeft, backRight};
-
-        for (DcMotorEx motor : motors) {
-            motor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-            motor.setPower(power);
-        }
-
-        while (opModeIsActive() && frontLeft.isBusy()) {
-            telemetry.addData("Strafing to", frontLeft.getTargetPosition());
-            telemetry.addData("Current", frontLeft.getCurrentPosition());
+            telemetry.addData("Current Position", frontLeft.getCurrentPosition());
             telemetry.update();
         }
 
@@ -119,7 +120,6 @@ public class FirstAuto extends LinearOpMode {
     }
 
     private void rotate90Degrees(double power) {
-
         double countsPerRev = 537.7;
         double wheelDiameterInches = 3.8;
         double countsPerInch = countsPerRev / (wheelDiameterInches * Math.PI);
